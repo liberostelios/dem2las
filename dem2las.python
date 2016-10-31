@@ -68,69 +68,86 @@ def saveLasFile(xvalues, yvalues, zvalues, classifications, filename):
 
     print "File saved successfully!"
 
-gdal.UseExceptions()
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv
 
-try:
-    src_ds = gdal.Open(input_file)
-except RuntimeError, e:
-    print "Unable to open %s" % input_file
-    print e
-    sys.exit(1)
+    gdal.UseExceptions()
 
-if band > src_ds.RasterCount:
-    print "Band %i is out of index" % band
-    sys.exit(1)
+    # Get the GDAL dataset
+    try:
+        src_ds = gdal.Open(input_file)
+    except RuntimeError, e:
+        print "Unable to open %s" % input_file
+        print e
+        sys.exit(1)
 
-srctransform = src_ds.GetGeoTransform()
+    if band > src_ds.RasterCount:
+        print "Band %i is out of index" % band
+        sys.exit(1)
 
-srcband = src_ds.GetRasterBand(band)
+    # Get the dataset's Trasnform information and the specified band
+    srctransform = src_ds.GetGeoTransform()
+    srcband = src_ds.GetRasterBand(band)
 
-print "Band size is {} x {}".format(srcband.XSize, srcband.YSize)
+    print "Band size is {} x {}".format(srcband.XSize, srcband.YSize)
 
-xsize = srcband.XSize
-ysize = srcband.YSize
+    # Some initialization which makes the main loop more efficient
+    xsize = srcband.XSize
+    ysize = srcband.YSize
 
-xvalues = []
-yvalues = []
-zvalues = []
+    xvalues = []
+    yvalues = []
+    zvalues = []
 
-resx = srctransform[1]
-resy = srctransform[5]
-rot = srctransform[2]
+    resx = srctransform[1]
+    resy = srctransform[5]
+    rot = srctransform[2]
 
-dx = cos(rot) * resx
-dy = sin(rot) * resx
+    dx = cos(rot) * resx
+    dy = sin(rot) * resx
 
-file_i = 0
+    file_i = 0
 
-for y in range(ysize):
-    scanline = srcband.ReadRaster(0, y, xsize, 1, xsize, 1, gdal.GDT_Float32)
-    values = struct.unpack('f' * xsize, scanline)
-    minx, miny = getActualPoint(0, y, srctransform)
-    maxx, maxy = getActualPoint(xsize, y, srctransform)
-    if (dx != 0):
-        xvals = arange(minx, maxx, dx)
-    else:
-        xvals = [minx] * xsize
+    # Main loop for each scanline
+    for y in range(ysize):
+        # Get binary data and use struct to convert them into float
+        scanline = srcband.ReadRaster(0, y, xsize, 1, xsize, 1, gdal.GDT_Float32)
+        values = struct.unpack('f' * xsize, scanline)
 
-    if (dy != 0):
-        yvals = arange(miny, maxy, dy)
-    else:
-        yvals = [miny] * xsize
+        # Generate the Xs and Ys for this scanline
+        minx, miny = getActualPoint(0, y, srctransform)
+        maxx, maxy = getActualPoint(xsize, y, srctransform)
+        if (dx != 0):
+            xvals = arange(minx, maxx, dx)
+        else:
+            xvals = [minx] * xsize
 
-    zvals = values
-    indices = [i for i in range(len(zvals)) if zvals[i] != 0]
-    xvalues.extend([xvals[i] for i in indices])
-    yvalues.extend([yvals[i] for i in indices])
-    zvalues.extend([zvals[i] for i in indices])
-    printProgress(y, ysize, barLength = 50)
-    if (len(xvalues) > limit):
-        saveLasFile(xvalues, yvalues, zvalues, [], "{}.{}.las".format(output_file, file_i))
-        xvalues = []
-        yvalues = []
-        zvalues = []
-        file_i = file_i + 1
+        if (dy != 0):
+            yvals = arange(miny, maxy, dy)
+        else:
+            yvals = [miny] * xsize
 
-saveLasFile(xvalues, yvalues, zvalues, [], "{}.{}.las".format(output_file, i))
+        # Those are the elevation values
+        zvals = values
 
-print "Done! Thank you for your time. Bye-bye..."
+        # Clear Xs, Ys and Zs where the GDAL dataset has no value (to save space)
+        indices = [i for i in range(len(zvals)) if zvals[i] != 0]
+        xvalues.extend([xvals[i] for i in indices])
+        yvalues.extend([yvals[i] for i in indices])
+        zvalues.extend([zvals[i] for i in indices])
+
+        printProgress(y, ysize, barLength = 50)
+
+        # As soon as we exceed the current limit of points, save the file (in order to save memory space for huge datasets)
+        if (len(xvalues) > limit):
+            saveLasFile(xvalues, yvalues, zvalues, [], "{}.{}.las".format(output_file, file_i))
+            xvalues = []
+            yvalues = []
+            zvalues = []
+            file_i = file_i + 1
+
+    # Save the last one
+    saveLasFile(xvalues, yvalues, zvalues, [], "{}.{}.las".format(output_file, i))
+
+    print "Done! Thank you for your time. Bye-bye..."
