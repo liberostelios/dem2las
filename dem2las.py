@@ -44,7 +44,7 @@ def getActualPoint(lx, ly, transform):
     return x, y
 
 def saveLasFile(xvalues, yvalues, zvalues, classifications, filename):
-    print "\nWriting {} points on file {}...".format(len(xvalues), filename)
+    print("\nWriting {} points on file {}...".format(len(xvalues), filename))
 
     hdr = laspy.header.Header()
 
@@ -66,7 +66,7 @@ def saveLasFile(xvalues, yvalues, zvalues, classifications, filename):
 
     outfile.close()
 
-    print "File saved successfully!"
+    print("File saved successfully!")
 
 def main(argv=None):
     if argv is None:
@@ -77,20 +77,20 @@ def main(argv=None):
     # Get the GDAL dataset
     try:
         src_ds = gdal.Open(input_file)
-    except RuntimeError, e:
-        print "Unable to open %s" % input_file
-        print e
+    except RuntimeError as e:
+        print("Unable to open %s" % input_file)
+        print(e)
         sys.exit(1)
 
     if band > src_ds.RasterCount:
-        print "Band %i is out of index" % band
+        print("Band %i is out of index" % band)
         sys.exit(1)
 
     # Get the dataset's Trasnform information and the specified band
     srctransform = src_ds.GetGeoTransform()
     srcband = src_ds.GetRasterBand(band)
 
-    print "Band size is {} x {}".format(srcband.XSize, srcband.YSize)
+    print("Band size is {} x {}".format(srcband.XSize, srcband.YSize))
 
     # Some initialization which makes the main loop more efficient
     xsize = srcband.XSize
@@ -150,4 +150,6 @@ def main(argv=None):
     # Save the last one
     saveLasFile(xvalues, yvalues, zvalues, [], "{}.{}.las".format(output_file, i))
 
-    print "Done! Thank you for your time. Bye-bye..."
+    print("Done! Thank you for your time. Bye-bye...")
+
+main()
