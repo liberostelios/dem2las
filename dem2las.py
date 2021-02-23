@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import sys
 import struct
 import numpy as np
@@ -5,8 +7,6 @@ from numpy import sin, cos, power, sqrt, pi, arange
 import gdal
 import laspy
 
-input_file = "/media/Downloads/EKXA Data/attiki_meli/DSM.vrt"
-output_file = "/media/Downloads/EKXA Data/attiki_meli/dsmtest"
 band = 1
 no_data_value = 0
 limit = 10000000
@@ -73,6 +73,14 @@ def main(argv=None):
         argv = sys.argv
 
     gdal.UseExceptions()
+
+    if len(argv) < 3:
+        print("Nee! Doesn't work without arguments...")
+        print("SYNTAX: python dem2las.py [input_file] [output.las]")
+        sys.exit(1)
+
+    input_file = argv[1]
+    output_file = argv[2]
 
     # Get the GDAL dataset
     try:
@@ -152,4 +160,6 @@ def main(argv=None):
 
     print("Done! Thank you for your time. Bye-bye...")
 
-main()
+if __name__ == "__main__":
+    # execute only if run as a script
+    main()
