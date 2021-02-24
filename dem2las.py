@@ -8,6 +8,7 @@ import gdal
 import laspy
 
 band = 1
+class_band = 2 # Set to -1 for no classification
 no_data_value = 0
 limit = 10000000
 
@@ -64,6 +65,9 @@ def saveLasFile(xvalues, yvalues, zvalues, classifications, filename):
     outfile.y = ally
     outfile.z = allz
 
+    if len(classifications) > 0:
+        outfile.raw_classification = np.array(classifications)
+
     outfile.close()
 
     print("File saved successfully!")
@@ -91,14 +95,24 @@ def main(argv=None):
         sys.exit(1)
 
     if band > src_ds.RasterCount:
-        print("Band %i is out of index" % band)
+        print("Band (%i) is out of index. Check your input!" % band)
         sys.exit(1)
 
-    # Get the dataset's Trasnform information and the specified band
+    # Get the dataset's transform information and the specified band
     srctransform = src_ds.GetGeoTransform()
     srcband = src_ds.GetRasterBand(band)
 
     print("Band size is {} x {}".format(srcband.XSize, srcband.YSize))
+
+    if class_band > src_ds.RasterCount:
+        print("Class band (%i) is out of index. Proceeding without classes" % class_band)
+        classify = False
+    else:
+        classify = True
+
+    if classify:
+        classband = src_ds.GetRasterBand(class_band)
+        print("Class band size is {} x {}".format(classband.XSize, classband.YSize))
 
     # Some initialization which makes the main loop more efficient
     xsize = srcband.XSize
@@ -107,6 +121,7 @@ def main(argv=None):
     xvalues = []
     yvalues = []
     zvalues = []
+    classifications = []
 
     resx = srctransform[1]
     resy = srctransform[5]
@@ -139,24 +154,32 @@ def main(argv=None):
         # Those are the elevation values
         zvals = values
 
+        if classify:
+            # Those are the classification values
+            scanline = classband.ReadRaster(0, y, xsize, 1, xsize, 1, gdal.GDT_Byte)
+            class_values = struct.unpack('b' * xsize, scanline)
+
         # Clear Xs, Ys and Zs where the GDAL dataset has no value (to save space)
         indices = [i for i in range(len(zvals)) if zvals[i] != no_data_value]
         xvalues.extend([xvals[i] for i in indices])
         yvalues.extend([yvals[i] for i in indices])
         zvalues.extend([zvals[i] for i in indices])
+        if classify:
+            classifications.extend([class_values[i] for i in indices])
 
         printProgress(y, ysize, barLength = 50)
 
         # As soon as we exceed the current limit of points, save the file (in order to save memory space for huge datasets)
         if (len(xvalues) > limit):
-            saveLasFile(xvalues, yvalues, zvalues, [], "{}.{}.las".format(output_file, file_i))
+            saveLasFile(xvalues, yvalues, zvalues, classifications, "{}.{}.las".format(output_file, file_i))
             xvalues = []
             yvalues = []
             zvalues = []
+            classifications = []
             file_i = file_i + 1
 
     # Save the last one
-    saveLasFile(xvalues, yvalues, zvalues, [], "{}.{}.las".format(output_file, file_i))
+    saveLasFile(xvalues, yvalues, zvalues, classifications, "{}.{}.las".format(output_file, file_i))
 
     print("Done! Thank you for your time. Bye-bye...")
 
