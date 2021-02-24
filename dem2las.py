@@ -140,7 +140,7 @@ def main(argv=None):
         zvals = values
 
         # Clear Xs, Ys and Zs where the GDAL dataset has no value (to save space)
-        indices = [i for i in range(len(zvals)) if zvals[i] != 0]
+        indices = [i for i in range(len(zvals)) if zvals[i] != no_data_value]
         xvalues.extend([xvals[i] for i in indices])
         yvalues.extend([yvals[i] for i in indices])
         zvalues.extend([zvals[i] for i in indices])
@@ -156,7 +156,7 @@ def main(argv=None):
             file_i = file_i + 1
 
     # Save the last one
-    saveLasFile(xvalues, yvalues, zvalues, [], "{}.{}.las".format(output_file, i))
+    saveLasFile(xvalues, yvalues, zvalues, [], "{}.{}.las".format(output_file, file_i))
 
     print("Done! Thank you for your time. Bye-bye...")
 
